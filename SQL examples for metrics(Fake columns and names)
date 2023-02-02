@@ -14,194 +14,147 @@ order by avg(score) desc
 limit 680*.1)) 
 and customer = 'cli' and startdate > '2022-01-01' 
 
-top 10 overall 
-
-select avg(score) as scorem, 
-driverid, 
-concat(months,'-',years) as date from 
-(select score, 
-EXTRACT(month FROM startdate) as months,
-EXTRACT(years FROM startdate) as years,
-driverid
-from log_apicall la 
-join log_riskscore l on l.apicallid = la.id 
-where customer = 'veriha') m1
-group by driverid, months, years
+## top 10 WL SCORE 
 
 
+WITH CTE AS (select to_char(date, 'YYYY-MM') as date, employee_id, customer_alias, risk_score
+from watch_list
+where customer_alias <>'safety-integrated')
 
-select *,months2-closedate as diff 
-from (select
-d.customer,
-d.ssid,
-h.driverid,
-h.startdate, 
-cast(h.closeddate as date) as closedate,
-h.name,
-h.category,
-cast(closeddate + interval '1' day as date)  as months2
-from improvementplans h 
-left join drivers d on h.driverid = d.id
-where h.status = 'Closed' and d.customer = 'hubsafetydriven'and h.startdate >'2021-08-31')m1 
-left join (select * from(select avg(score) as score2,
-r.driverid, 
-cast(a.startdate as date) as date2,
-customer 
-from 
-log_riskscore r
-left join log_apicall a on r.apicallid = a.id
-group by r.driverid,a.startdate,customer ) m2 ) m2 on m2.driverid = m1.ssid and m1.months2= date2 and m2.customer = m1.customer 
-
-UNION ALL 
-
-select *,months2-closedate as diff 
-from (select
-d.customer,
-d.ssid,
-h.driverid,
-h.startdate, 
-cast(h.closeddate as date) as closedate,
-h.name,
-h.category,
-cast(closeddate + interval '30' day as date)  as months2
-from improvementplans h 
-left join drivers d on h.driverid = d.id
-where h.status = 'Closed' and d.customer = 'hubsafetydriven'and h.startdate >'2021-08-31')m1 
-left join (select * from(select avg(score) as score2,
-r.driverid, 
-cast(a.startdate as date) as date2,
-customer 
-from 
-log_riskscore r
-left join log_apicall a on r.apicallid = a.id
-group by r.driverid,a.startdate,customer ) m2 ) m2 on m2.driverid = m1.ssid and m1.months2= date2 and m2.customer = m1.customer 
-
-UNION ALL 
-
-select *,months2-closedate as diff 
-from (select
-d.customer,
-d.ssid,
-h.driverid,
-h.startdate, 
-cast(h.closeddate as date) as closedate,
-h.name,
-h.category,
-cast(closeddate + interval '60' day as date)  as months2
-from improvementplans h 
-left join drivers d on h.driverid = d.id
-where h.status = 'Closed' and d.customer = 'hubsafetydriven'and h.startdate >'2021-08-31')m1 
-left join (select * from(select avg(score) as score2,
-r.driverid, 
-cast(a.startdate as date) as date2,
-customer 
-from 
-log_riskscore r
-left join log_apicall a on r.apicallid = a.id
-group by r.driverid,a.startdate,customer ) m2 ) m2 on m2.driverid = m1.ssid and m1.months2= date2 and m2.customer = m1.customer 
-
-UNION ALL 
-
-select *,months2-closedate as diff 
-from (select
-d.customer,
-d.ssid,
-h.driverid,
-h.startdate, 
-cast(h.closeddate as date) as closedate,
-h.name,
-h.category,
-cast(closeddate + interval '90' day as date)  as months2
-from improvementplans h 
-left join drivers d on h.driverid = d.id
-where h.status = 'Closed' and d.customer = 'hubsafetydriven'and h.startdate >'2021-08-31')m1 
-left join (select * from(select avg(score) as score2,
-r.driverid, 
-cast(a.startdate as date) as date2,
-customer 
-from 
-log_riskscore r
-left join log_apicall a on r.apicallid = a.id
-group by r.driverid,a.startdate,customer ) m2 ) m2 on m2.driverid = m1.ssid and m1.months2= date2 and m2.customer = m1.customer 
-
-UNION ALL 
-
-select *,months2-closedate as diff 
-from (select
-d.customer,
-d.ssid,
-h.driverid,
-h.startdate, 
-cast(h.closeddate as date)as closedate,
-h.name,
-h.category,
-cast(closeddate - interval '30' day as date)  as months2
-from improvementplans h 
-left join drivers d on h.driverid = d.id
-where h.status = 'Closed' and d.customer = 'hubsafetydriven'and h.startdate >'2021-08-31')m1 
-left join (select * from(select avg(score) as score2,
-r.driverid, 
-cast(a.startdate as date) as date2,
-customer 
-from 
-log_riskscore r
-left join log_apicall a on r.apicallid = a.id
-group by r.driverid,a.startdate,customer ) m2 ) m2 on m2.driverid = m1.ssid and m1.months2= date2 and m2.customer = m1.customer 
+select customer_alias,date, employee_id, cnt,ranks, score  from 
+(select *, ROW_NUMBER() OVER(PARTITION BY  customer_alias, 
+date  ORDER BY score DESC) as ranks,count(employee_id) over (partition by customer_alias,date) as cnt
+FROM
+(select date, employee_id, customer_alias, avg(risk_score) as score
+from CTE 
+group by date,employee_id, customer_alias) m1 )m2
+where ranks <=  cnt * 0.1 and ranks> 0 and cnt > 0
+and customer_alias ='centurion'
 
 
 
+with drivers_hier AS (SELECT distinct firstname, lastname, groupid,d.id as driverid,d.ssid,terminal_name,higher_hierarchy_name,d.customer
+from drivers d
+join (
+select h1.customer, h1.ssid, h1.parentssid, h1.display as terminal_name,h1.grouptype,  h2.display as higher_hierarchy_name
+from hierarchy h1, hierarchy h2
+where h1.customer = 'mx' and h1.parentssid = h2.ssid  and h2.customer = 'mx' 
+and h1.grouptype ='TERMINAL'
+order by ssid desc ) m1 on m1.customer = d.customer and m1.ssid = d.groupid
+where d.customer = 'mx' and d.deleted is not true),
 
 
-top 10 without changing hubs
-select avg(score), concat(months,'-',years) as date from (select cast(startdate as date),driverid, score,customer,
-extract(month from startdate) as months,
-extract(year from startdate) as years,
- row_number() over (partition by driverid order by score desc) as rank
-  from log_apicall la 
-left join log_riskscore l on l.apicallid = la.id 
-where driverid in (
-(select driverid from (select 
-startdate,
-score,
-driverid,customer
-from log_apicall la 
-join log_riskscore l on l.apicallid = la.id 
-where customer = 'hubsafetydriven' and startdate > '2021-08-31' and startdate < '2021-10-01')  m 
-group by driverid,customer 
-order by avg(score) desc 
-limit 12611*.1)) 
-and customer = 'hubsafetydriven' and startdate > '2021-08-31') m1
-group by months, years 
+CTE AS (select i.startdate,i.name, i.category, d.id, d.ssid, d.groupid
+,TO_CHAR(startdate , 'YYYY-MM') as DATE2,
+TO_CHAR((startdate + interval '1' month), 'YYYY-MM')  as DATE3,
+TO_CHAR((startdate + interval '2' month), 'YYYY-MM') as DATE4,
+TO_CHAR((startdate + interval '3' month), 'YYYY-MM') as DATE5,
+TO_CHAR((startdate - interval '1' month), 'YYYY-MM') as DATE6,
+TO_CHAR((startdate - interval '2' month), 'YYYY-MM')  as DATE7	
+from improvementplans i
+left join drivers d  on i.driverid = d.id
+where customer = 'mx' and startdate >='2022-01-01'),
 
 
-select avg(score),driverid, concat(months,'-',years) as date from
-(select avg(score) as score, driverid,
-extract(month from startdate) as months,
-extract(year from startdate) as years
-from log_apicall la 
-left join log_riskscore l on l.apicallid = la.id 
-where customer = 'cli' and startdate > '2022-07-31'
-group by driverid ,startdate) m1 
-group by driverid,months,years
-limit  
+CTE1 AS (select id, avg(score) AS score_after_1, WL_Score_After_Day_1 from(SELECT
+d.id,
+TO_CHAR(startdate, 'YYYY-MM') AS WL_Score_After_Day_1,
+score
+from  drivers d
+left join log_riskscore l  on d.ssid = l.driverid  
+left join log_apicall la on l.apicallid = la.id and la.customer = d.customer 
+where  
+la.customer = 'mx' 
+and d.deleted is not true
+and la.route = 'score_drivers'
+and la.success = 'true') T1
+group by id,WL_Score_After_Day_1),
 
 
-pdp tasks complete ontime 
+CTE2 AS (select id, avg(score) AS score_after_30, WL_Score_After_Day_30 from(SELECT
+d.id,
+TO_CHAR(startdate, 'YYYY-MM') AS WL_Score_After_Day_30,
+score
+from  drivers d
+left join log_riskscore l  on d.ssid = l.driverid  
+left join log_apicall la on l.apicallid = la.id and la.customer = d.customer 
+where  
+la.customer = 'mx' 
+and d.deleted is not true
+and la.route = 'score_drivers'
+and la.success = 'true') T1
+group by id,WL_Score_After_Day_30),
 
-select *, case when 
-DateDifference = 0 and DateDifference < 4 then 'ontime'
- when DateDifference > 3 and DateDifference < 6 then 'in5days'
- when DateDifference > 5 and DateDifference < 11 then 'in10days' 
- when DateDifference > 10 and DateDifference < 31 then 'inonemonth'
-  when DateDifference > 30 and DateDifference < 61 then 'intwomonth' 
-   end as duestatus 
-  from (
-select planid,i.ssid,i.name,i.category,customer,i.duedate,i.created,i.sscreated,completed,
-EXTRACT(day FROM i.duedate- i.sscreated) AS DateDifference 
-from improvementplantasks i
-join improvementplans h on h.id = i.planid
-join drivers d on d.id = h.driverid 
-where customer = 'hubsafetydriven' and i.deleted is not true and completed is not false) m1 
+
+CTE3 AS (select id, avg(score) AS score_after_60, WL_Score_After_Day_60 from(SELECT
+d.id,
+TO_CHAR(startdate, 'YYYY-MM') AS WL_Score_After_Day_60,
+score
+from  drivers d
+left join log_riskscore l  on d.ssid = l.driverid  
+left join log_apicall la on l.apicallid = la.id and la.customer = d.customer 
+where  
+la.customer = 'mx' 
+and d.deleted is not true
+and la.route = 'score_drivers'
+and la.success = 'true') T1
+group by id,WL_Score_After_Day_60),
+
+
+CTE4 AS (select id, avg(score) AS score_after_90, WL_Score_After_Day_90 from(SELECT
+d.id,
+TO_CHAR(startdate, 'YYYY-MM') AS WL_Score_After_Day_90,
+score
+from  drivers d
+left join log_riskscore l  on d.ssid = l.driverid  
+left join log_apicall la on l.apicallid = la.id and la.customer = d.customer 
+where  
+la.customer = 'mx' 
+and d.deleted is not true
+and la.route = 'score_drivers'
+and la.success = 'true') T1
+group by id,WL_Score_After_Day_90),
+
+
+CTE5 AS (select id, avg(score) AS score_before_30, WL_Score_before_Day_30 from(SELECT
+d.id,
+TO_CHAR(startdate, 'YYYY-MM') AS WL_Score_before_Day_30,
+score
+from  drivers d
+left join log_riskscore l  on d.ssid = l.driverid  
+left join log_apicall la on l.apicallid = la.id and la.customer = d.customer 
+where  
+la.customer = 'mx' 
+and d.deleted is not true
+and la.route = 'score_drivers'
+and la.success = 'true') T1
+group by id,WL_Score_before_Day_30),
+
+
+CTE6 AS (select id, avg(score) AS score_before_60, WL_Score_before_Day_60 from(SELECT
+d.id,
+TO_CHAR(startdate, 'YYYY-MM') AS WL_Score_before_Day_60,
+score
+from  drivers d
+left join log_riskscore l  on d.ssid = l.driverid  
+left join log_apicall la on l.apicallid = la.id and la.customer = d.customer 
+where  
+la.customer = 'mx' 
+and d.deleted is not true
+and la.route = 'score_drivers'
+and la.success = 'true') T1
+group by id,WL_Score_before_Day_60)
+
+select name, i.id, date3,date2,date6,date7,date4,date5,score_before_30,score_before_60,score_after_1,score_after_30,score_after_60,score_after_90,
+terminal_name,higher_hierarchy_name
+from CTE i 
+left join CTE1 on CTE1.id = i.id and i.DATE2 = CTE1.WL_Score_After_Day_1 
+left join CTE2 on CTE2.id = i.id and i.DATE3 = CTE2.WL_Score_After_Day_30 
+left join CTE5 on CTE5.id = i.id and i.DATE6 = CTE5.WL_Score_before_Day_30 
+left join CTE6 on CTE6.id = i.id and i.DATE7 = CTE6.WL_Score_before_Day_60 
+left join CTE3 on CTE3.id = i.id and i.DATE4 = CTE3.WL_Score_After_Day_60 
+left join CTE4 on CTE4.id = i.id and i.DATE5 = CTE4.WL_Score_After_Day_90
+left join drivers_hier on drivers_hier.ssid = i.ssid
 
 
 
@@ -236,6 +189,22 @@ WHERE
   progress.template_id = (SELECT id FROM model_templates WHERE alias = 'improvement_plan_progress_update')) m1) m2)m3
   where duestatus = 'ontime' or duestatus = 'in5days'
   group by months, years 
+
+
+##exmaple2 
+
+with hierarchy as (Select DISTINCT h1.customer_alias, h1.id,h1.parent_id, h3.id as highest_hierarchy_id, h1.legacy_id, h1.group_type as terminal_name,  h2.display as higher_hierarchy_name,
+h3.display as highest_hierarchy_name
+from groups h1 , groups h2 , groups h3 
+where  h1.parent_id = h2.id  and h2.parent_id = h3.id
+and h1.group_type ='TERMINAL' and h1.parent_id is not null and h3.group_type <>'CUSTOMER' 
+order by customer_alias desc) 
+
+
+select t.id, t.updated_date, t.customer_alias, employee_id, terminal_name, higher_hierarchy_name,highest_hierarchy_name
+from highway_observations t
+left join hierarchy h on h.id = t.group_id and h.customer_alias = t.customer_alias
+where updated_date >= '2022-01-01' and terminal_name is not null 
 
 
 
