@@ -1,0 +1,396 @@
+select score, EXTRACT(month FROM startdate) as months,customer,driverid
+from log_apicall la 
+join log_riskscore l on l.apicallid = la.id 
+where driverid in (
+(select driverid from (select 
+startdate,
+score,
+driverid,customer
+from log_apicall la 
+join log_riskscore l on l.apicallid = la.id 
+where customer = 'cli' and startdate > '2022-01-01' and startdate < '2022-02-01')  m 
+group by driverid,customer 
+order by avg(score) desc 
+limit 680*.1)) 
+and customer = 'cli' and startdate > '2022-01-01' 
+
+top 10 overall 
+
+select avg(score) as scorem, 
+driverid, 
+concat(months,'-',years) as date from 
+(select score, 
+EXTRACT(month FROM startdate) as months,
+EXTRACT(years FROM startdate) as years,
+driverid
+from log_apicall la 
+join log_riskscore l on l.apicallid = la.id 
+where customer = 'veriha') m1
+group by driverid, months, years
+
+
+
+select *,months2-closedate as diff 
+from (select
+d.customer,
+d.ssid,
+h.driverid,
+h.startdate, 
+cast(h.closeddate as date) as closedate,
+h.name,
+h.category,
+cast(closeddate + interval '1' day as date)  as months2
+from improvementplans h 
+left join drivers d on h.driverid = d.id
+where h.status = 'Closed' and d.customer = 'hubsafetydriven'and h.startdate >'2021-08-31')m1 
+left join (select * from(select avg(score) as score2,
+r.driverid, 
+cast(a.startdate as date) as date2,
+customer 
+from 
+log_riskscore r
+left join log_apicall a on r.apicallid = a.id
+group by r.driverid,a.startdate,customer ) m2 ) m2 on m2.driverid = m1.ssid and m1.months2= date2 and m2.customer = m1.customer 
+
+UNION ALL 
+
+select *,months2-closedate as diff 
+from (select
+d.customer,
+d.ssid,
+h.driverid,
+h.startdate, 
+cast(h.closeddate as date) as closedate,
+h.name,
+h.category,
+cast(closeddate + interval '30' day as date)  as months2
+from improvementplans h 
+left join drivers d on h.driverid = d.id
+where h.status = 'Closed' and d.customer = 'hubsafetydriven'and h.startdate >'2021-08-31')m1 
+left join (select * from(select avg(score) as score2,
+r.driverid, 
+cast(a.startdate as date) as date2,
+customer 
+from 
+log_riskscore r
+left join log_apicall a on r.apicallid = a.id
+group by r.driverid,a.startdate,customer ) m2 ) m2 on m2.driverid = m1.ssid and m1.months2= date2 and m2.customer = m1.customer 
+
+UNION ALL 
+
+select *,months2-closedate as diff 
+from (select
+d.customer,
+d.ssid,
+h.driverid,
+h.startdate, 
+cast(h.closeddate as date) as closedate,
+h.name,
+h.category,
+cast(closeddate + interval '60' day as date)  as months2
+from improvementplans h 
+left join drivers d on h.driverid = d.id
+where h.status = 'Closed' and d.customer = 'hubsafetydriven'and h.startdate >'2021-08-31')m1 
+left join (select * from(select avg(score) as score2,
+r.driverid, 
+cast(a.startdate as date) as date2,
+customer 
+from 
+log_riskscore r
+left join log_apicall a on r.apicallid = a.id
+group by r.driverid,a.startdate,customer ) m2 ) m2 on m2.driverid = m1.ssid and m1.months2= date2 and m2.customer = m1.customer 
+
+UNION ALL 
+
+select *,months2-closedate as diff 
+from (select
+d.customer,
+d.ssid,
+h.driverid,
+h.startdate, 
+cast(h.closeddate as date) as closedate,
+h.name,
+h.category,
+cast(closeddate + interval '90' day as date)  as months2
+from improvementplans h 
+left join drivers d on h.driverid = d.id
+where h.status = 'Closed' and d.customer = 'hubsafetydriven'and h.startdate >'2021-08-31')m1 
+left join (select * from(select avg(score) as score2,
+r.driverid, 
+cast(a.startdate as date) as date2,
+customer 
+from 
+log_riskscore r
+left join log_apicall a on r.apicallid = a.id
+group by r.driverid,a.startdate,customer ) m2 ) m2 on m2.driverid = m1.ssid and m1.months2= date2 and m2.customer = m1.customer 
+
+UNION ALL 
+
+select *,months2-closedate as diff 
+from (select
+d.customer,
+d.ssid,
+h.driverid,
+h.startdate, 
+cast(h.closeddate as date)as closedate,
+h.name,
+h.category,
+cast(closeddate - interval '30' day as date)  as months2
+from improvementplans h 
+left join drivers d on h.driverid = d.id
+where h.status = 'Closed' and d.customer = 'hubsafetydriven'and h.startdate >'2021-08-31')m1 
+left join (select * from(select avg(score) as score2,
+r.driverid, 
+cast(a.startdate as date) as date2,
+customer 
+from 
+log_riskscore r
+left join log_apicall a on r.apicallid = a.id
+group by r.driverid,a.startdate,customer ) m2 ) m2 on m2.driverid = m1.ssid and m1.months2= date2 and m2.customer = m1.customer 
+
+
+
+
+
+top 10 without changing hubs
+select avg(score), concat(months,'-',years) as date from (select cast(startdate as date),driverid, score,customer,
+extract(month from startdate) as months,
+extract(year from startdate) as years,
+ row_number() over (partition by driverid order by score desc) as rank
+  from log_apicall la 
+left join log_riskscore l on l.apicallid = la.id 
+where driverid in (
+(select driverid from (select 
+startdate,
+score,
+driverid,customer
+from log_apicall la 
+join log_riskscore l on l.apicallid = la.id 
+where customer = 'hubsafetydriven' and startdate > '2021-08-31' and startdate < '2021-10-01')  m 
+group by driverid,customer 
+order by avg(score) desc 
+limit 12611*.1)) 
+and customer = 'hubsafetydriven' and startdate > '2021-08-31') m1
+group by months, years 
+
+
+select avg(score),driverid, concat(months,'-',years) as date from
+(select avg(score) as score, driverid,
+extract(month from startdate) as months,
+extract(year from startdate) as years
+from log_apicall la 
+left join log_riskscore l on l.apicallid = la.id 
+where customer = 'cli' and startdate > '2022-07-31'
+group by driverid ,startdate) m1 
+group by driverid,months,years
+limit  
+
+
+pdp tasks complete ontime 
+
+select *, case when 
+DateDifference = 0 and DateDifference < 4 then 'ontime'
+ when DateDifference > 3 and DateDifference < 6 then 'in5days'
+ when DateDifference > 5 and DateDifference < 11 then 'in10days' 
+ when DateDifference > 10 and DateDifference < 31 then 'inonemonth'
+  when DateDifference > 30 and DateDifference < 61 then 'intwomonth' 
+   end as duestatus 
+  from (
+select planid,i.ssid,i.name,i.category,customer,i.duedate,i.created,i.sscreated,completed,
+EXTRACT(day FROM i.duedate- i.sscreated) AS DateDifference 
+from improvementplantasks i
+join improvementplans h on h.id = i.planid
+join drivers d on d.id = h.driverid 
+where customer = 'hubsafetydriven' and i.deleted is not true and completed is not false) m1 
+
+
+
+
+## task counts completion ontime 
+
+select count(*), concat(months,'-',years) as date from (select *, extract(month from completeddate) as months, 
+					  extract(year from completeddate) as years,case when 
+DateDifference = 0 and DateDifference < 4 then 'ontime'
+when DateDifference > 3 and DateDifference < 6 then 'in5days'
+ when DateDifference > 5 and DateDifference < 11 then 'in10days' 
+ when DateDifference > 10 and DateDifference < 31 then 'inonemonth'
+  when DateDifference > 30  then 'morethan30days' 
+else null 
+   end as duestatus 
+   from(
+select task_id, cast( completed_date as date) as completeddate,cast(due_date as date)as duedate, 
+EXTRACT(day FROM completed_date -due_date) AS DateDifference 
+   from 
+   (SELECT
+  task.id AS task_id,
+  to_timestamp((task.fields->>'dueDate')::numeric) AS due_date,
+  to_timestamp((progress.fields->>'meetingDate')::numeric) AS completed_date
+FROM models task
+JOIN model_relations task_progress ON task_progress.parent_id = task.id AND task_progress.parent_relation_name = 'progressUpdate'
+JOIN models progress ON task_progress.child_id = progress.id
+WHERE
+  task.fields->'completed' = 'true'::jsonb
+  AND
+  task.template_id = (SELECT id FROM model_templates WHERE alias = 'improvement_plan_task')
+  AND
+  progress.template_id = (SELECT id FROM model_templates WHERE alias = 'improvement_plan_progress_update')) m1) m2)m3
+  where duestatus = 'ontime' or duestatus = 'in5days'
+  group by months, years 
+
+
+
+## % of task completion ontime 
+
+select * from (select count(*) as completed_tasks, concat(months,'-',years) as date from (select *, extract(month from completeddate) as months, 
+					  extract(year from completeddate) as years,case when 
+DateDifference = 0 and DateDifference < 4 then 'ontime'
+when DateDifference > 3 and DateDifference < 6 then 'in5days'
+ when DateDifference > 5 and DateDifference < 11 then 'in10days' 
+ when DateDifference > 10 and DateDifference < 31 then 'inonemonth'
+  when DateDifference > 30  then 'morethan30days' 
+else null 
+   end as duestatus 
+   from(
+select task_id, cast( completed_date as date) as completeddate,cast(due_date as date)as duedate, 
+EXTRACT(day FROM completed_date -due_date) AS DateDifference 
+   from 
+   (SELECT
+  task.id AS task_id,
+  to_timestamp((task.fields->>'dueDate')::numeric) AS due_date,
+  to_timestamp((progress.fields->>'meetingDate')::numeric) AS completed_date
+FROM models task
+JOIN model_relations task_progress ON task_progress.parent_id = task.id AND task_progress.parent_relation_name = 'progressUpdate'
+JOIN models progress ON task_progress.child_id = progress.id
+WHERE
+  task.fields->'completed' = 'true'::jsonb
+  AND
+  task.template_id = (SELECT id FROM model_templates WHERE alias = 'improvement_plan_task')
+  AND
+  progress.template_id = (SELECT id FROM model_templates WHERE alias = 'improvement_plan_progress_update')) m1) m2)m3
+  where duestatus = 'ontime' or duestatus = 'in5days'
+  group by months, years) TT1
+  
+left join (
+
+select count(*) as total_tasks, concat(months,'-',years) as date from (select *, extract(month from completeddate) as months, 
+					  extract(year from completeddate) as years,case when 
+DateDifference = 0 and DateDifference < 4 then 'ontime'
+when DateDifference > 3 and DateDifference < 6 then 'in5days'
+ when DateDifference > 5 and DateDifference < 11 then 'in10days' 
+ when DateDifference > 10 and DateDifference < 31 then 'inonemonth'
+  when DateDifference > 30  then 'morethan30days' 
+else null 
+   end as duestatus 
+   from(
+select task_id, cast( completed_date as date) as completeddate,cast(due_date as date)as duedate, 
+EXTRACT(day FROM completed_date -due_date) AS DateDifference 
+   from 
+   (SELECT
+  task.id AS task_id,
+  to_timestamp((task.fields->>'dueDate')::numeric) AS due_date,
+  to_timestamp((progress.fields->>'meetingDate')::numeric) AS completed_date
+FROM models task
+JOIN model_relations task_progress ON task_progress.parent_id = task.id AND task_progress.parent_relation_name = 'progressUpdate'
+JOIN models progress ON task_progress.child_id = progress.id
+WHERE
+  task.fields->'completed' = 'true'::jsonb
+  AND
+  task.template_id = (SELECT id FROM model_templates WHERE alias = 'improvement_plan_task')
+  AND
+  progress.template_id = (SELECT id FROM model_templates WHERE alias = 'improvement_plan_progress_update')) m1) m2)m3
+  group by months, years) M1 ON M1.date = TT1.date
+
+
+
+
+### culmative counts_of_drivers_on_pdp,
+
+							
+ WITH T AS (
+    select
+count(driverid) as counts_of_drivers_on_pdp,
+cast(h.created as date ) as date,
+Extract(Month from h.created) as months,
+	 Extract(Year from h.created) as Years
+from improvementplans h 
+left join drivers d on h.driverid = d.id
+where d.customer = 'hubsafetydriven'and h.deleted is not true
+group by h.created )
+    SELECT 
+	    date,
+        counts_of_drivers_on_pdp, 
+        SUM(counts_of_drivers_on_pdp) OVER( ORDER BY date ASC  
+                            ROWS UNBOUNDED PRECEDING ) cumulative  
+FROM T
+
+
+
+
+### % drivers on pdp( need to fix) 
+
+
+select *,count_of_drivers_on_pdp/cumulative*100 from(WITH T AS (
+    select date, count(*) as counts_of_drivers from (select id, cast(created as date) as date, hiredate,terminationdate,status 
+from drivers
+where customer = 'hubsafetydriven' and status = 'active')m1
+group by date) 
+    SELECT 
+        T.date, 
+        SUM(counts_of_drivers) OVER( ORDER BY T.date ASC  
+                            ROWS UNBOUNDED PRECEDING ) cumulative  
+FROM T) T
+Left join (select date, count(*) as count_of_drivers_on_pdp from (select id, cast(created as date) as date, hiredate,terminationdate,status 
+from drivers
+where customer = 'hubsafetydriven')m
+group by date 
+order by date desc ) m2 on m2.date =T.date 
+
+
+
+Select * from (WITH T AS (
+    select date, count(*) as counts_of_drivers from (select id, cast(created as date) as date, hiredate,terminationdate,status 
+from drivers
+where customer = 'hubsafetydriven' and status = 'active')m1
+group by date) 
+    SELECT 
+        T.date, 
+        SUM(counts_of_drivers) OVER( ORDER BY T.date ASC  
+                            ROWS UNBOUNDED PRECEDING ) cumulative_of_active_drivers
+			   
+FROM T) T1
+
+
+## telematics after pdp 
+
+select * from (select *, 
+case when 
+DateDifference >= -60  and DateDifference <= -30 then '-60 to -30'
+ when DateDifference >= -29  and DateDifference <= 0 then '- 30 to 0'
+ when DateDifference > 0 and DateDifference <= 30 then ' 0 to 30' 
+ when DateDifference > 30 and DateDifference <= 60 then ' 30 to 60'
+ when DateDifference > 60 and DateDifference <= 90 then ' 60 to 90'			   
+end as monthsafterPDP 
+from (
+select t.id,t.driverid, t.date, telematicstype,m.driverid,
+m.startdate, 
+m.closeddate,
+m.name,
+m.category,
+m.customer,
+telematicstype,
+EXTRACT(day FROM date- closeddate) AS DateDifference 
+from telematicsalerts t
+left join drivers d on d.id = t.driverid 
+full outer join(select
+h.driverid,
+h.startdate, 
+h.closeddate,
+h.name,
+h.category,
+customer 
+from improvementplans h 
+left join drivers d on h.driverid = d.id
+where h.status = 'Closed' and d.customer = 'cli'and h.deleted is not true) m on m.driverid = t.driverid 
+where d.customer = 'cli' and d.deleted is not true) m2 
+where DateDifference is not null) m3 
+where  monthsafterPDP is not null 
